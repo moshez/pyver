@@ -13,7 +13,7 @@ enum PyVer {
 fn command_list(maybe_root: Option<String>) -> Result<(), Box<dyn std::error::Error>> {
     let pyver_root = match maybe_root {
         Some(pyver_root) => pyver_root,
-        None => env::var("PYVER_ROOT")?
+        None => env::var("PYVER_ROOT")?,
     };
     for entry in fs::read_dir(pyver_root)? {
         if let Some(path) = entry?.path().file_name() {
@@ -23,7 +23,7 @@ fn command_list(maybe_root: Option<String>) -> Result<(), Box<dyn std::error::Er
     Ok(())
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>>{
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let opt = PyVer::from_args();
     match opt {
         PyVer::List { root } => command_list(root)?,
