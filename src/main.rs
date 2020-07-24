@@ -12,6 +12,12 @@ enum PyVer {
         #[structopt(short, long)]
         root: Option<String>,
     },
+    Build {
+        #[structopt(short, long)]
+        root: Option<String>,
+        #[structopt(short, long)]
+        version: String,
+    },
 }
 
 fn command_list(maybe_root: Option<String>) -> Result<(), Box<dyn std::error::Error>> {
@@ -33,19 +39,34 @@ fn print_contents(dirname: String) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn get_relative_to_root(maybe_root: Option<String>, subdir: String) -> Result<String, Box<dyn std::error::Error>> {
+fn get_relative_to_root(
+    maybe_root: Option<String>,
+    child: String,
+) -> Result<String, Box<dyn std::error::Error>> {
     let root = match maybe_root {
         Some(pyver_root) => pyver_root,
         None => env::var("PYVER_ROOT")?,
     };
-    Ok(root + "/" + &subdir)
+    Ok(root + "/" + &child)
+}
+
+fn command_build(
+    maybe_root: Option<String>,
+    version: String,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let child = "sources/".to_owned() + &version;
+    let relative_child = get_relative_to_root(maybe_root, child)?;
+
+    println!("Pretending to build {}", relative_child);
+    Ok(())
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let opt = PyVer::from_args();
     match opt {
-        PyVer::List { root } => command_list(root)?,
-        PyVer::Cached { root } => command_cached(root)?,
-    };
+        PyVer::List { root } => command_list(root),
+        PyVer::Cached { root } => command_cached(root),
+        PyVer::Build { root, version } => command_build(root, version),
+    }?;
     Ok(())
 }
