@@ -1,4 +1,4 @@
-use std::{env, error, fmt, fs, process};
+use std::{env, error, fmt, fs, process, path};
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
@@ -44,8 +44,9 @@ impl fmt::Display for NotFoundError {
 impl error::Error for NotFoundError {}
 
 fn find_tarball(dirname: &str) -> Result<String, Box<dyn error::Error>> {
-    for entry in fs::read_dir(dirname)? {
-        if let Some(path) = entry?.path().file_name() {
+    let entries = easy_read_dir(dirname)?;
+    for entry in entries {
+        if let Some(path) = entry.file_name() {
             let name = path.to_string_lossy();
             if name.ends_with(".tgz") || name.ends_with(".xz") {
                 let ret_value = dirname.to_owned() + "/" + &name;
@@ -58,11 +59,16 @@ fn find_tarball(dirname: &str) -> Result<String, Box<dyn error::Error>> {
     }))
 }
 
-fn print_contents(dirname: &str) -> Result<(), Box<dyn error::Error>> {
+
+fn easy_read_dir(dirname: &str) -> Result<impl Iterator<Item=path::PathBuf>, Box<dyn error::Error>> {
     let entries = fs::read_dir(dirname)?
                     .filter_map(|res| res.ok()).map(|res| res.path());
+    Ok(entries)
+}
 
-    for entry in entries { 
+fn print_contents(dirname: &str) -> Result<(), Box<dyn error::Error>> {
+    let entries = easy_read_dir(dirname)?;
+    for entry in entries {
         if let Some(path) = entry.file_name() {
             println!("{}", path.to_string_lossy());
         }
