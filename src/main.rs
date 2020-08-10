@@ -22,12 +22,12 @@ enum PyVer {
 
 fn command_list(maybe_root: Option<String>) -> Result<(), Box<dyn error::Error>> {
     let versions = get_relative_to_root(maybe_root, "versions".to_string())?;
-    print_contents(versions)
+    print_contents(&versions)
 }
 
 fn command_cached(maybe_root: Option<String>) -> Result<(), Box<dyn error::Error>> {
     let cached = get_relative_to_root(maybe_root, "sources".to_string())?;
-    print_contents(cached)
+    print_contents(&cached)
 }
 
 #[derive(Debug, Clone)]
@@ -58,9 +58,12 @@ fn find_tarball(dirname: &str) -> Result<String, Box<dyn error::Error>> {
     }))
 }
 
-fn print_contents(dirname: String) -> Result<(), Box<dyn error::Error>> {
-    for entry in fs::read_dir(dirname)? {
-        if let Some(path) = entry?.path().file_name() {
+fn print_contents(dirname: &str) -> Result<(), Box<dyn error::Error>> {
+    let entries = fs::read_dir(dirname)?
+                    .filter_map(|res| res.ok()).map(|res| res.path());
+
+    for entry in entries { 
+        if let Some(path) = entry.file_name() {
             println!("{}", path.to_string_lossy());
         }
     }
