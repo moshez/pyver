@@ -1,4 +1,4 @@
-use std::{env, error, fmt, fs};
+use std::{env, error, fmt, fs, process};
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
@@ -43,12 +43,12 @@ impl fmt::Display for NotFoundError {
 
 impl error::Error for NotFoundError {}
 
-fn find_tarball(dirname: String) -> Result<String, Box<dyn error::Error>> {
-    for entry in fs::read_dir(&dirname)? {
+fn find_tarball(dirname: &str) -> Result<String, Box<dyn error::Error>> {
+    for entry in fs::read_dir(dirname)? {
         if let Some(path) = entry?.path().file_name() {
             let name = path.to_string_lossy();
             if name.ends_with(".tgz") || name.ends_with(".xz") {
-                let ret_value = dirname + "/" + &name;
+                let ret_value = dirname.to_owned() + "/" + &name;
                 return Ok(ret_value);
             }
         }
@@ -86,9 +86,16 @@ fn get_relative_to_root(
 fn command_build(maybe_root: Option<String>, version: String) -> Result<(), Box<dyn error::Error>> {
     let child = "sources/".to_owned() + &version;
     let relative_child = get_relative_to_root(maybe_root, child)?;
-    let tarball = find_tarball(relative_child)?;
+    let tarball = find_tarball(&relative_child)?;
 
-    println!("Pretending to build {}", tarball);
+    println!("Running tar unpack {}", tarball);
+
+    process::Command::new("tar")
+        .args(&["--extract", "--file", &tarball])
+        .current_dir(&relative_child)
+        .status()?;
+
+    println!("Pretending to build in {}", relative_child);
     Ok(())
 }
 
