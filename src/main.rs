@@ -1,4 +1,4 @@
-use std::{env, error, fmt, fs, process, path};
+use std::{env, error, fmt, fs, path, process};
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
@@ -59,10 +59,12 @@ fn find_tarball(dirname: &str) -> Result<String, Box<dyn error::Error>> {
     }))
 }
 
-
-fn easy_read_dir(dirname: &str) -> Result<impl Iterator<Item=path::PathBuf>, Box<dyn error::Error>> {
+fn easy_read_dir(
+    dirname: &str,
+) -> Result<impl Iterator<Item = path::PathBuf>, Box<dyn error::Error>> {
     let entries = fs::read_dir(dirname)?
-                    .filter_map(|res| res.ok()).map(|res| res.path());
+        .filter_map(|res| res.ok())
+        .map(|res| res.path());
     Ok(entries)
 }
 
