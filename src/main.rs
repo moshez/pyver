@@ -17,6 +17,8 @@ enum PyVer {
         root: Option<String>,
         #[structopt(short, long)]
         version: String,
+        #[structopt(short, long)]
+        no_dry_run: bool,
     },
 }
 
@@ -65,7 +67,9 @@ fn find_unpacked(dirname: &str) -> Result<String, Box<dyn error::Error>> {
         if let Ok(metadata) = entry.metadata() {
             if metadata.is_dir() {
                 let path = entry.file_name().ok_or("cannot get name")?;
-		return Ok(path.to_string_lossy().to_string());
+                let str_path = path.to_string_lossy().to_string();
+                let ret_value = dirname.to_owned() + "/" + &str_path;
+                return Ok(ret_value);
             }
         }
     }
@@ -109,30 +113,46 @@ fn get_relative_to_root(
     Ok(root_slash + &child)
 }
 
-fn command_build(maybe_root: Option<&str>, version: &str) -> Result<(), Box<dyn error::Error>> {
+fn find_unpacked_or_unpack(
+    maybe_root: Option<&str>,
+    version: &str,
+) -> Result<String, Box<dyn error::Error>> {
     let child = "sources/".to_owned() + version;
     let relative_child = get_relative_to_root(maybe_root, &child)?;
+    if let Ok(unpacked) = find_unpacked(&relative_child) {
+        return Ok(unpacked);
+    }
     let tarball = find_tarball(&relative_child)?;
-
     println!("Running tar unpack {}", tarball);
-
     process::Command::new("tar")
         .args(&["--extract", "--file", &tarball])
         .current_dir(&relative_child)
         .status()?;
+    find_unpacked(&relative_child)
+}
 
-    let unpacked = relative_child.to_owned() + "/" + &find_unpacked(&relative_child)?;
+fn command_build(
+    maybe_root: Option<&str>,
+    version: &str,
+    no_dry_run: bool,
+) -> Result<(), Box<dyn error::Error>> {
+    let unpacked = find_unpacked_or_unpack(maybe_root, version)?;
     println!("Unpacked {}", unpacked);
-    let prefix = get_relative_to_root(maybe_root, &("versions/".to_owned() + version))?;
+    let relative_prefix = "versions/".to_owned() + version;
+    let prefix = get_relative_to_root(maybe_root, &relative_prefix)?;
     println!("Prefix {}", prefix);
-    process::Command::new("./configure")
-        .args(&["--prefix", &prefix])
-        .current_dir(&unpacked)
-        .status()?;
-    process::Command::new("make")
-        .args(&["install"])
-        .current_dir(&unpacked)
-        .status()?;
+    if no_dry_run {
+        process::Command::new("./configure")
+            .args(&["--prefix", &prefix])
+            .current_dir(&unpacked)
+            .status()?;
+        process::Command::new("make")
+            .args(&["install"])
+            .current_dir(&unpacked)
+            .status()?;
+    } else {
+        println!("Dry run only, not building");
+    }
     Ok(())
 }
 
@@ -141,7 +161,11 @@ fn main() -> Result<(), Box<dyn error::Error>> {
     match opt {
         PyVer::List { root } => command_list(root.as_deref()),
         PyVer::Cached { root } => command_cached(root.as_deref()),
-        PyVer::Build { root, version } => command_build(root.as_deref(), &version),
+        PyVer::Build {
+            root,
+            version,
+            no_dry_run,
+        } => command_build(root.as_deref(), &version, no_dry_run),
     }?;
     Ok(())
 }
