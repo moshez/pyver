@@ -1,5 +1,8 @@
 use std::{env, error, fmt, fs, path, process};
 use structopt::StructOpt;
+use surf;
+use async_std::task;
+
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "pyver", about = "A Python version manager")]
@@ -59,6 +62,26 @@ fn find_tarball(dirname: &str) -> Result<String, Box<dyn error::Error>> {
     Err(Box::new(NotFoundError {
         fname: "tarball".into(),
     }))
+}
+
+
+fn find_tarball_or_download(dirname: &str, version: &str) -> Result<String, Box<dyn error::Error>> {
+	if let Ok(value) = find_tarball(dirname) {
+		return Ok(value);
+	}
+        let fname = "Python-".to_owned() + version + ".tgz";
+        let full_fname = dirname.to_owned() + "/" + &fname;
+	let url = "https://www.python.org/ftp/python/".to_owned() + version + "/" +&fname;
+	println!("url is {}, full_name is {}", url, full_fname);
+        /*
+        let bytes;
+        task::block_on(async {
+            bytes = surf::get("https://httpbin.org/get").recv_bytes().await?;
+            panic!("got bytes {}", bytes.len());
+        })
+        */
+        panic!("not implemented yet");
+	//full_fname
 }
 
 fn find_unpacked(dirname: &str) -> Result<String, Box<dyn error::Error>> {
@@ -122,7 +145,7 @@ fn find_unpacked_or_unpack(
     if let Ok(unpacked) = find_unpacked(&relative_child) {
         return Ok(unpacked);
     }
-    let tarball = find_tarball(&relative_child)?;
+    let tarball = find_tarball_or_download(&relative_child, version)?;
     println!("Running tar unpack {}", tarball);
     process::Command::new("tar")
         .args(&["--extract", "--file", &tarball])
