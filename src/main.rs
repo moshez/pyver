@@ -1,8 +1,8 @@
+use async_std::task;
+use std::io::Write;
 use std::{env, error, fmt, fs, path, process};
 use structopt::StructOpt;
 use surf;
-use async_std::task;
-
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "pyver", about = "A Python version manager")]
@@ -64,24 +64,31 @@ fn find_tarball(dirname: &str) -> Result<String, Box<dyn error::Error>> {
     }))
 }
 
-
 fn find_tarball_or_download(dirname: &str, version: &str) -> Result<String, Box<dyn error::Error>> {
-	if let Ok(value) = find_tarball(dirname) {
-		return Ok(value);
-	}
-        let fname = "Python-".to_owned() + version + ".tgz";
-        let full_fname = dirname.to_owned() + "/" + &fname;
-	let url = "https://www.python.org/ftp/python/".to_owned() + version + "/" +&fname;
-	println!("url is {}, full_name is {}", url, full_fname);
-        /*
-        let bytes;
-        task::block_on(async {
-            bytes = surf::get("https://httpbin.org/get").recv_bytes().await?;
-            panic!("got bytes {}", bytes.len());
-        })
-        */
-        panic!("not implemented yet");
-	//full_fname
+    if let Ok(value) = find_tarball(dirname) {
+        return Ok(value);
+    }
+    fs::create_dir_all(dirname)?;
+    let fname = "Python-".to_owned() + version + ".tgz";
+    let full_fname = dirname.to_owned() + "/" + &fname;
+    let url = "https://www.python.org/ftp/python/".to_owned() + version + "/" + &fname;
+    println!("url is {}, full_name is {}", url, full_fname);
+    let result = task::block_on(async { download_url_to_file(&url, &full_fname).await });
+    match result {
+        Err(err) => Err(err),
+        Ok(()) => Ok(full_fname),
+    }
+}
+
+async fn download_url_to_file(url: &str, filename: &str) -> Result<(), surf::Exception> {
+    let bytes = surf::get(url).recv_bytes().await?;
+    let mut buffer = fs::File::create(filename)?;
+    let mut pos = 0;
+    while pos < bytes.len() {
+        let bytes_written = buffer.write(&bytes[pos..])?;
+        pos += bytes_written;
+    }
+    Ok(())
 }
 
 fn find_unpacked(dirname: &str) -> Result<String, Box<dyn error::Error>> {
