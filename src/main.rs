@@ -23,6 +23,28 @@ enum PyVer {
         #[structopt(short, long)]
         no_dry_run: bool,
     },
+    Which {
+        #[structopt(short, long)]
+        root: Option<String>,
+        version: String,
+    },
+}
+
+fn command_which(maybe_root: Option<&str>, version: &str) -> Result<(), Box<dyn error::Error>> {
+    let versions = get_relative_to_root(maybe_root, "versions")?;
+    let entries = easy_read_dir(&versions)?;
+    for entry in entries {
+        if let Some(path) = entry.file_name() {
+		let name = path.to_string_lossy();
+                if name.starts_with(version) {
+			println!("{}/{}/bin/python3", versions, name);
+			return Ok(())
+                }
+        }
+    }
+    Err(Box::new(NotFoundError {
+        fname: "tarball".into(),
+    }))
 }
 
 fn command_list(maybe_root: Option<&str>) -> Result<(), Box<dyn error::Error>> {
@@ -191,6 +213,7 @@ fn main() -> Result<(), Box<dyn error::Error>> {
     match opt {
         PyVer::List { root } => command_list(root.as_deref()),
         PyVer::Cached { root } => command_cached(root.as_deref()),
+        PyVer::Which { root, version } => command_which(root.as_deref(), &version),
         PyVer::Build {
             root,
             version,
