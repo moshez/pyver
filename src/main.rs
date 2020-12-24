@@ -155,7 +155,12 @@ fn get_relative_to_root(
 ) -> Result<String, Box<dyn error::Error>> {
     let root = match maybe_root {
         Some(pyver_root) => pyver_root.to_owned(),
-        None => env::var("PYVER_ROOT")?,
+        None => match env::var("PYVER_ROOT") {
+            Ok(directory) => directory,
+            Err(_) => {
+                env::var("HOME")? + "/.pyver"
+            }
+        }
     };
     let root_slash = if root.ends_with("/") {
         root
