@@ -1,6 +1,6 @@
 use async_std::task;
 use std::io::Write;
-use std::{env, error, fmt, fs, path, process};
+use std::{env, error, fmt, fs, io, path, process};
 use structopt::StructOpt;
 use surf;
 
@@ -35,11 +35,11 @@ fn command_which(maybe_root: Option<&str>, version: &str) -> Result<(), Box<dyn 
     let entries = easy_read_dir(&versions)?;
     for entry in entries {
         if let Some(path) = entry.file_name() {
-		let name = path.to_string_lossy();
-                if name.starts_with(version) {
-			println!("{}/{}/bin/python3", versions, name);
-			return Ok(())
-                }
+            let name = path.to_string_lossy();
+            if name.starts_with(version) {
+                println!("{}/{}/bin/python3", versions, name);
+                return Ok(());
+            }
         }
     }
     Err(Box::new(NotFoundError {
@@ -149,6 +149,19 @@ fn print_contents(dirname: &str) -> Result<(), Box<dyn error::Error>> {
     Ok(())
 }
 
+#[derive(Debug, Clone)]
+struct RootNotDirectory {
+    name: String,
+}
+
+impl fmt::Display for RootNotDirectory {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{} is not a directory", self.name)
+    }
+}
+
+impl error::Error for RootNotDirectory {}
+
 fn get_relative_to_root(
     maybe_root: Option<&str>,
     child: &str,
@@ -157,17 +170,38 @@ fn get_relative_to_root(
         Some(pyver_root) => pyver_root.to_owned(),
         None => match env::var("PYVER_ROOT") {
             Ok(directory) => directory,
-            Err(_) => {
-                env::var("HOME")? + "/.pyver"
-            }
-        }
+            Err(_) => env::var("HOME")? + "/.pyver",
+        },
     };
     let root_slash = if root.ends_with("/") {
         root
     } else {
         root + "/"
     };
-    Ok(root_slash + &child)
+    ensure_directory(&root_slash)?;
+    let ret = root_slash + &child;
+    ensure_directory(&ret)?;
+    Ok(ret)
+}
+
+fn ensure_directory(dirname: &str) -> Result<(), Box<dyn error::Error>> {
+    match fs::metadata(dirname) {
+        Err(error) => {
+            if error.kind() == io::ErrorKind::NotFound {
+                fs::create_dir(&dirname)?
+            } else {
+                return Err(Box::new(error));
+            }
+        }
+        Ok(metadata) => {
+            if !metadata.is_dir() {
+                return Err(Box::new(RootNotDirectory {
+                    name: dirname.into(),
+                }));
+            }
+        }
+    };
+    Ok(())
 }
 
 fn find_unpacked_or_unpack(
