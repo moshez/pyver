@@ -102,9 +102,9 @@ fn find_tarball_or_download(dirname: &str, version: &str) -> Result<String, Box<
     }
 }
 
-async fn download_url_to_file(url: &str, filename: &str) -> Result<(), surf::Exception> {
+async fn download_url_to_file(url: &str, filename: &str) -> Result<(), Box<dyn error::Error>> {
     let mut res = surf::get(url).await?;
-    let content_type = res.content_type()?;
+    let content_type = res.content_type().map(|&x| x.essence()).unwrap_or("text/html");
     panic!("woops {:?}", content_type);
     let bytes = res.body_bytes().await?;
     let mut buffer = fs::File::create(filename)?;
