@@ -104,6 +104,13 @@ fn find_tarball_or_download(dirname: &str, version: &str) -> Result<String, Box<
 
 async fn download_url_to_file(url: &str, filename: &str) -> Result<(), Box<dyn error::Error>> {
     let mut res = surf::get(url).await?;
+    let status = res.status();
+    if status != surf::StatusCode::Ok {
+        return Err(Box::new(NotFoundError {
+            fname: "No such version".into()
+        }));
+
+    }
     let content_type = res
         .content_type()
         .map(|x| x.essence().to_owned())
