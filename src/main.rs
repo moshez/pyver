@@ -102,8 +102,26 @@ fn find_tarball_or_download(dirname: &str, version: &str) -> Result<String, Box<
     }
 }
 
-async fn download_url_to_file(url: &str, filename: &str) -> Result<(), surf::Exception> {
-    let bytes = surf::get(url).recv_bytes().await?;
+async fn download_url_to_file(url: &str, filename: &str) -> Result<(), Box<dyn error::Error>> {
+    let mut res = surf::get(url).await?;
+    let status = res.status();
+    if status != surf::StatusCode::Ok {
+        return Err(Box::new(NotFoundError {
+            fname: "No such version".into()
+        }));
+
+    }
+    let content_type = res
+        .content_type()
+        .map(|x| x.essence().to_owned())
+        .unwrap_or("text/html".to_owned());
+    if content_type != "application/octet-stream" {
+        return Err(Box::new(NotFoundError {
+            // TODO: Fix error
+            fname: "bad content type".into(),
+        }));
+    }
+    let bytes = res.body_bytes().await?;
     let mut buffer = fs::File::create(filename)?;
     let mut pos = 0;
     while pos < bytes.len() {
