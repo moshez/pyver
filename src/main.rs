@@ -226,6 +226,8 @@ fn find_unpacked_or_unpack(
     maybe_root: Option<&str>,
     version: &str,
 ) -> Result<String, Box<dyn error::Error>> {
+    // Make sure /sources directory exists
+    get_relative_to_root(maybe_root, "sources")?;
     let child = "sources/".to_owned() + version;
     let relative_child = get_relative_to_root(maybe_root, &child)?;
     if let Ok(unpacked) = find_unpacked(&relative_child) {
@@ -247,6 +249,7 @@ fn command_build(
 ) -> Result<(), Box<dyn error::Error>> {
     let unpacked = find_unpacked_or_unpack(maybe_root, version)?;
     println!("Unpacked {}", unpacked);
+    get_relative_to_root(maybe_root, "versions")?;
     let relative_prefix = "versions/".to_owned() + version;
     let prefix = get_relative_to_root(maybe_root, &relative_prefix)?;
     println!("Prefix {}", prefix);
