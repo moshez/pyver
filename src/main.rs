@@ -43,7 +43,7 @@ fn command_which(maybe_root: Option<&str>, version: &str) -> Result<(), Box<dyn 
         }
     }
     Err(Box::new(NotFoundError {
-        fname: "tarball".into(),
+        fname: "no such version ".to_owned() + version
     }))
 }
 
